@@ -1,0 +1,67 @@
+﻿@page "/group"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json.Serialization
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using Microsoft.Extensions.Logging
+@using web.Shared
+
+@attribute [Authorize]
+
+@inject IAccessTokenProvider TokenProvider
+@inject IHttpClientFactory ClientFactory
+@inject ILogger<Group> Logger
+
+<PageTitle>Group</PageTitle>
+
+<h1>Group</h1>
+
+@if(groupModel == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div>
+        <label>Display Name: </label>
+        <p>@groupModel.DisplayName</p>
+    </div>
+    <div>
+        <label>Mail Enabled: </label>
+        <p>@groupModel.MailEnabled</p>
+    </div>
+}
+
+@code {
+    private GroupModel? groupModel;
+    protected override async Task OnInitializedAsync()
+    {
+        var tokenResult = await TokenProvider.RequestAccessToken(
+           new AccessTokenRequestOptions
+                {
+                    Scopes = new[] { "https://graph.microsoft.com/Group.Read.All" }
+                }
+       );
+
+        if (tokenResult.TryGetToken(out var token))
+        {
+            var client = ClientFactory.CreateClient("GraphAPI");
+
+            groupModel = await client.GetFromJsonAsync<GroupModel>("v1.0/groups/6580bc74-a78d-404f-bff0-013c1a5e8700");
+        }
+        else
+        {
+            Logger.LogError("Unable to get group");
+        }
+    }
+
+    private class GroupModel
+    {
+        [JsonPropertyName("displayName")]
+        public string DisplayName { get; set; }
+
+        [JsonPropertyName("mailEnabled")]
+        public bool MailEnabled { get; set; }        
+    }
+}
