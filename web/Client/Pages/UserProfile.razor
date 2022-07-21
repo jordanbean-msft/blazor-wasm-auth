@@ -1,0 +1,75 @@
+﻿@page "/userprofile"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json.Serialization
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using Microsoft.Extensions.Logging
+@using web.Shared
+
+@attribute [Authorize]
+
+@inject IAccessTokenProvider TokenProvider
+@inject IHttpClientFactory ClientFactory
+@inject ILogger<UserProfile> Logger
+
+<PageTitle>User Profile</PageTitle>
+
+<h1>User Profile</h1>
+
+@if(userProfileModel == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div>
+        <label>GivenName: </label>
+        <p>@userProfileModel.GivenName</p>
+    </div>
+    <div>
+        <label>Surname: </label>
+        <p>@userProfileModel.Surname</p>
+    </div>
+    <div>
+        <label>Mail: </label>
+        <p>@userProfileModel.Mail</p>
+    </div>
+}
+
+@code {
+    private UserProfileModel? userProfileModel;
+    protected override async Task OnInitializedAsync()
+    {
+        var tokenResult = await TokenProvider.RequestAccessToken(
+            new AccessTokenRequestOptions
+                {
+                    Scopes = new[] { "https://graph.microsoft.com/User.Read" }
+                }
+        );        
+
+        if (tokenResult.TryGetToken(out var token))
+        {
+            var client = ClientFactory.CreateClient("GraphAPI");
+
+            userProfileModel = await client.GetFromJsonAsync<UserProfileModel>("v1.0/me");
+        }
+        else
+        {
+            Logger.LogError("Unable to get user profile");
+        }
+ 
+   }
+    
+    private class UserProfileModel
+    {
+        [JsonPropertyName("givenName")]
+        public string GivenName { get; set; }
+
+        [JsonPropertyName("surname")]
+        public string Surname { get; set; }
+
+        [JsonPropertyName("mail")]
+        public string Mail { get; set; }
+    }
+}
